@@ -12,7 +12,7 @@
 #include "shell.h"
 
 
-char** Subprocess::get_argv() const {
+char** Subprocess::get_argv()  {
     char ** argv = new char*[argsVect.size() + 2];
 
     argv[0] = new char[command.size() + 1];
@@ -28,7 +28,7 @@ char** Subprocess::get_argv() const {
     return argv;
 }
 
-void Subprocess::free_argv(char** argv) const {
+void Subprocess::free_argv(char** argv)  {
     for(size_t i = 0; i < argsVect.size() + 1; i++) {
         delete [] argv[i];
     }
@@ -90,12 +90,12 @@ void Process::add_process(Subprocess& process) {
 }
 
 // Assign a file to read stdin from.
-void Process::set_input(const string& filename) {
+void Process::set_input( string& filename) {
     _input_filename = filename;
 }
 
 // Assign a file to write stdout to.
-void Process::set_output(const string& filename) {
+void Process::set_output( string& filename) {
     _output_filename = filename;
     
 }
@@ -198,7 +198,7 @@ Process::~Process() {
 void Controller::update_child(pid_t pid, int status) {
 }
 
-void Controller::tokenizer(const vector<string>& tokens) {
+void Controller::tokenizer( vector<string>& tokens) {
     int num_tokens = tokens.size(),
         last_index = num_tokens - 1;
 
@@ -287,9 +287,9 @@ void Controller::enqueue_job(shared_ptr<Process> flow, bool background) {
 }
 
 //Return true if PID is background process
-const bool Controller::is_background_pid(int pid) const {
-    for (const auto &job : _jobs)
-        for (const Subprocess& process : job->_flow)
+ bool Controller::is_background_pid(int pid)  {
+    for ( auto &job : _jobs)
+        for ( Subprocess& process : job->_flow)
             if (process._pid == pid) return true;
     return false;
 }

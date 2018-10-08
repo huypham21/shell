@@ -29,14 +29,14 @@ public:
     pid_t run(int fd_in=0, int fd_out=1);
     void exec(int fd_in=0, int fd_out=1);
 
-    const pid_t& get_pid() const { return _pid; }
-    const string& get_command() const { return command; }
-    const vector<string>& get_args() const { return argsVect; }
-    const vector<string>& get_tokens() const { return tokensVect; }
-    Process& get_flow() const { return *_flow; }
+     pid_t& get_pid()  { return _pid; }
+     string& get_command()  { return command; }
+     vector<string>& get_args()  { return argsVect; }
+     vector<string>& get_tokens()  { return tokensVect; }
+    Process& get_flow()  { return *_flow; }
 
-    char** get_argv() const;
-    void free_argv(char** argv) const;
+    char** get_argv() ;
+    void free_argv(char** argv) ;
 private:
     pid_t _pid = -1;
     Process* _flow;
@@ -49,11 +49,11 @@ class Process {
     friend class Controller;
 public:
     void add_process(Subprocess& proc);
-    void set_input(const string& filename);
-    void set_output(const string& filename);
+    void set_input( string& filename);
+    void set_output( string& filename);
 
-    Controller& get_controller() const { return *_controller; }
-    const vector<Subprocess>& get_flow() const { return _flow; }
+    Controller& get_controller()  { return *_controller; }
+     vector<Subprocess>& get_flow()  { return _flow; }
 
     bool prepare();
     pid_t run(bool background = false);
@@ -72,12 +72,12 @@ private:
 
 class Controller {
 public:
-    void tokenizer(const vector<string>& tokens);
+    void tokenizer( vector<string>& tokens);
     void reset() { _pending.clear(); }
 
     void enqueue_job(shared_ptr<Process> flow, bool background = false);
     dirstack_t& get_dirstack() { return _dirstack; }
-    const bool is_background_pid(int pid) const;
+     bool is_background_pid(int pid) ;
 
     void run();
 
@@ -89,8 +89,6 @@ private:
     deque<pair<shared_ptr<Process>, bool>> _pending;
     dirstack_t _dirstack;
 
-    vector<shared_ptr<Process>>
-        _flows, // Foreground commands in order
-        _jobs;  // Background jobs indexed by ID - 1
+    vector<shared_ptr<Process>>_jobs;  // Background jobs indexed by ID - 1
 };
 
