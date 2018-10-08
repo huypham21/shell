@@ -16,7 +16,7 @@
 
 using namespace std;
 
-class ProcessFlow;
+class Process;
 class Controller;
 
 using dirstack_t = deque<string>;
@@ -24,7 +24,7 @@ using dirstack_t = deque<string>;
 // Represents a process
 class Subprocess {
     friend class Controller;
-    friend class ProcessFlow;
+    friend class Process;
 public:
     pid_t run(int fd_in=0, int fd_out=1);
     void exec(int fd_in=0, int fd_out=1);
@@ -33,19 +33,19 @@ public:
     const string& get_command() const { return command; }
     const vector<string>& get_args() const { return argsVect; }
     const vector<string>& get_tokens() const { return tokensVect; }
-    ProcessFlow& get_flow() const { return *_flow; }
+    Process& get_flow() const { return *_flow; }
 
     char** get_argv() const;
     void free_argv(char** argv) const;
 private:
     pid_t _pid = -1;
-    ProcessFlow* _flow;
+    Process* _flow;
     string command;
     vector<string> argsVect, tokensVect;
 };
 
 
-class ProcessFlow {
+class Process {
     friend class Controller;
 public:
     void add_process(Subprocess& proc);
@@ -58,7 +58,7 @@ public:
     bool prepare();
     pid_t run(bool background = false);
 
-    ~ProcessFlow();
+    ~Process();
 private:
     Controller* _controller;
     string _input_filename,
@@ -72,12 +72,10 @@ private:
 
 class Controller {
 public:
-    void parse(const vector<string>& tokens);
-    void reset_pending() { _pending.clear(); }
+    void tokenizer(const vector<string>& tokens);
+    void reset() { _pending.clear(); }
 
-    void enqueue_job(shared_ptr<ProcessFlow> flow, bool background = false);
-    shared_ptr<ProcessFlow> get_job(int job_id) const;
-    const vector<shared_ptr<ProcessFlow>>& get_jobs() const { return _jobs; }
+    void enqueue_job(shared_ptr<Process> flow, bool background = false);
     dirstack_t& get_dirstack() { return _dirstack; }
     const bool is_background_pid(int pid) const;
 
@@ -88,10 +86,10 @@ public:
 
 private:
     // Holds jobs while parsing. Second value in pair is background flag.
-    deque<pair<shared_ptr<ProcessFlow>, bool>> _pending;
+    deque<pair<shared_ptr<Process>, bool>> _pending;
     dirstack_t _dirstack;
 
-    vector<shared_ptr<ProcessFlow>>
+    vector<shared_ptr<Process>>
         _flows, // Foreground commands in order
         _jobs;  // Background jobs indexed by ID - 1
 };

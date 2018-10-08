@@ -103,7 +103,7 @@ int main() {
 		}
     }
         if (cdFlag){
-                proc.parse(token);
+                proc.tokenizer(token);
                 proc.run();
         }
         cin.clear();token.clear();command="\0";

@@ -84,29 +84,28 @@ pid_t Subprocess::run(int fd_in, int fd_out) {
 
 
 // Add a process object
-void ProcessFlow::add_process(Subprocess& process) {
+void Process::add_process(Subprocess& process) {
     process._flow = this;
     _flow.push_back(process);
 }
 
 // Assign a file to read stdin from.
-void ProcessFlow::set_input(const string& filename) {
+void Process::set_input(const string& filename) {
     _input_filename = filename;
 }
 
 // Assign a file to write stdout to.
-void ProcessFlow::set_output(const string& filename) {
+void Process::set_output(const string& filename) {
     _output_filename = filename;
     
 }
 
 // Opens files as a prepare stage.
-bool ProcessFlow::prepare() {
+bool Process::prepare() {
 
     // Attach stdin to file if requested
     if (!_input_filename.empty()) {
         _input_handle = fopen(_input_filename.c_str(), "rb");
-         if (_input_handle == NULL) cerr << "File not found";
     }
 
     // Attach stdout to file if requested
@@ -121,7 +120,7 @@ bool ProcessFlow::prepare() {
 }
 
 // Fork and exec
-pid_t ProcessFlow::run(bool background) {
+pid_t Process::run(bool background) {
     if (_flow.empty()) return -1;
 
     int last_proc = _flow.size() - 1,
@@ -132,20 +131,16 @@ pid_t ProcessFlow::run(bool background) {
     for (int i=0 ; i <= last_proc ; i++) {
         Subprocess& process = _flow[i];
 
-        // Create pipe, if needed
         if (i != last_proc && pipe(pipes) != 0)
             cerr<<"pipe creation failed";
 
         if (i == 0) {
-            // Attach stdin to file if requested
             if (_input_handle != NULL)
                 fd_in = fileno(_input_handle);
-            // Close stdin of first process if backgrounding and no redirect
             else if (background)
                 fd_in = -1;
         }
 
-        // Attach stdout to file if requested
         if (i == last_proc) {
             if (_output_handle != NULL)
                 fd_out = fileno(_output_handle);
@@ -158,8 +153,8 @@ pid_t ProcessFlow::run(bool background) {
         process.run(fd_in, fd_out);
 
         if (i != last_proc) {
-            fd_in = pipes[0]; // Set for the next loop
-            close(pipes[1]);  // Close parent end, only used by child
+            fd_in = pipes[0]; // for next recursion 
+            close(pipes[1]);  // Close parent pipe, only used child
         }
 
         // Close input/output files if we opened them
@@ -174,7 +169,7 @@ pid_t ProcessFlow::run(bool background) {
         }
     }
 
-    // Return the last process in the chain
+    //For return last process
     if (background)
         return _flow.back()._pid;
 
@@ -187,7 +182,7 @@ pid_t ProcessFlow::run(bool background) {
     dup2(saved_stdin, 0);
 }
 
-ProcessFlow::~ProcessFlow() {
+Process::~Process() {
     if(_input_handle != NULL) {
         fclose(_input_handle);
         _input_handle = NULL;
@@ -200,43 +195,34 @@ ProcessFlow::~ProcessFlow() {
 }
 
 
-
-bool special_tokens(const string& token) {
-    static const set<string> tokens {"&", ";", "|", "<", ">"};
-    return tokens.count(token) > 0;
-}
-
 void Controller::update_child(pid_t pid, int status) {
 }
 
-void Controller::parse(const vector<string>& tokens) {
+void Controller::tokenizer(const vector<string>& tokens) {
     int num_tokens = tokens.size(),
         last_index = num_tokens - 1;
 
     Subprocess current_cmd;
-    shared_ptr<ProcessFlow> current_flow = make_shared<ProcessFlow>();
-    bool current_special;
+    shared_ptr<Process> current_flow = make_shared<Process>();
 
     for (int i=0; i < num_tokens; i++) {
-        // cout<<"\n Tokens at "<< i<<" : "<<tokens.at(i)<<"\n";
-        current_special = special_tokens(tokens[i]);
         current_cmd.tokensVect.push_back(tokens[i]);
 
-        // Run as background job
+        // Run as background
         if (tokens[i] == "&") {
             current_flow->add_process(current_cmd);
             enqueue_job(current_flow, true);
 
             current_cmd = Subprocess();
-            current_flow = make_shared<ProcessFlow>();
+            current_flow = make_shared<Process>();
         }
-        // Run as foreground job
+        // Run as foreground
         else if (tokens[i] == ";") {
             current_flow->add_process(current_cmd);
             enqueue_job(current_flow, false);
 
             current_cmd = Subprocess();
-            current_flow = make_shared<ProcessFlow>();
+            current_flow = make_shared<Process>();
         }
         // Pipe 
         else if (tokens[i] == "|") {
@@ -274,14 +260,14 @@ void Controller::run() {
             flow_bg.first->prepare();
         }
     } catch (exception& e) {
-        reset_pending();
+        reset();
         throw;
     }
 
-    // Populate and start background and foreground jobs, in order
+    //Run process in background and foreground
     while (!_pending.empty()) {
-        pair<shared_ptr<ProcessFlow>, bool> front = _pending.front();
-        shared_ptr<ProcessFlow> flow = front.first;
+        pair<shared_ptr<Process>, bool> front = _pending.front();
+        shared_ptr<Process> flow = front.first;
         bool background = front.second;
 
         if(background) {
@@ -295,17 +281,12 @@ void Controller::run() {
     }
 }
 
-void Controller::enqueue_job(shared_ptr<ProcessFlow> flow, bool background) {
+void Controller::enqueue_job(shared_ptr<Process> flow, bool background) {
     flow->_controller = this;
     _pending.emplace_back(flow, background);
 }
 
-// Retreive a job
-shared_ptr<ProcessFlow> Controller::get_job(int job_id) const {
-    return _jobs[job_id - 1];
-}
-
-// Searches jobs for a PID. If it's a background PID, return true.
+//Return true if PID is background process
 const bool Controller::is_background_pid(int pid) const {
     for (const auto &job : _jobs)
         for (const Subprocess& process : job->_flow)
