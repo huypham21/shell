@@ -13,8 +13,6 @@
 
 #include "shell.h"
 
-// Holding buffer for messages to display before prompting again
-std::map<pid_t, int> notifications;
 
 using namespace std;
 
@@ -42,13 +40,12 @@ int redirect(char * arg){// argument after cd
 			return -1;
 			}
 		}
-		return 0;
+	return 0;
 }
 
 
 int main() {
     Controller proc;
-    
     struct sigaction sa;
     sa.sa_handler = &handle_sigchld;
     sigemptyset(&sa.sa_mask);
@@ -60,24 +57,32 @@ int main() {
 
  while (true){
     printf("$");
-    int tokenList_size = 0;
     string command,curr; 
-    vector<string> token, spec;
+    size_t currPos,begin=0;
+    vector<string> token;
     string input;
     getline(cin, command,'\n');
     while (command == "\0"){//get back to promt if nothing was entered
 			printf("$");
       getline(cin, command,'\n');
 		}
+        cin.clear();
+            currPos = command.find("'");
+        if ( currPos!= std::string::npos){
+            command.replace(currPos,1,"");
+            size_t found = command.find("'");
+            curr = command.substr(currPos,found-currPos);//-currPos-1
+            command.replace(currPos,found-currPos+1,"");//-currPos+1
+        }
+
+
       stringstream ss(command);
 
     while(getline(ss, input,' ')){
       size_t prev = 0, pos;
-      while ((pos = input.find_first_of("|<>\'\"", prev)) != string::npos)
+      while ((pos = input.find_first_of("|<>", prev)) != string::npos)
       {
-          if (input[pos]=='\''){
-              cout<<"\nFound \' \n";
-           }
+          
           if (pos==0)token.push_back(input.substr(pos,1));
           if (pos > prev ){
               token.push_back(input.substr(prev, pos-prev));
@@ -85,10 +90,9 @@ int main() {
           }    
           prev = pos+1;
       }
-      if (prev < input.length())
-          token.push_back(input.substr(prev, string::npos));
+      if (prev < input.length()) token.push_back(input.substr(prev, string::npos));
+      if(input=="awk"||input=="echo") {token.push_back(curr);} 
     }
-
     bool cdFlag=1;
     for(int i = 0;i<token.size();i++) {
       tokenList[i]=(char*)token[i].data();
@@ -98,11 +102,6 @@ int main() {
             cdFlag=0;
 		}
     }
-
-    tokenList[token.size()]=NULL; tokenList_size = token.size(); 
-    cin.clear();
-
-//////////////////////////////////////////////////
         if (cdFlag){
                 proc.parse(token);
                 proc.run();
