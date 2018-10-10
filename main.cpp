@@ -15,7 +15,6 @@
 
 
 using namespace std;
-
 char* tokenList[30];
 
 void handle_sigchld(int sig) {
@@ -44,7 +43,7 @@ int redirect(char * arg){// argument after cd
 }
 
 
-int main() {
+int main(int argc, char **argv) {
     Controller proc;
     struct sigaction sa;
     sa.sa_handler = &handle_sigchld;
@@ -55,17 +54,19 @@ int main() {
         exit(1);
     }
 
+    string prompt="$";
+    // if(getopt(argc, argv, "t:")=='t')prompt.assign((const char*)getenv("USER"));
  while (true){
-    printf("$");
+    printf("%s",prompt.c_str());
     string command,curr; 
     size_t currPos,begin=0;
     vector<string> token;
     string input;
     getline(cin, command,'\n');
     while (command == "\0"){//get back to promt if nothing was entered
-			printf("$");
-      getline(cin, command,'\n');
-		}
+		printf("%s",prompt.c_str());
+        getline(cin, command,'\n');
+	}
         cin.clear();
             currPos = command.find("'");
         if ( currPos!= std::string::npos){
@@ -74,7 +75,17 @@ int main() {
             curr = command.substr(currPos,found-currPos);//-currPos-1
             command.replace(currPos,found-currPos+1,"");//-currPos+1
         }
-
+            currPos = command.find("\"");
+        if ( currPos!= std::string::npos){
+            command.replace(currPos,1,"");
+            size_t found = command.find("\"");
+            curr = command.substr(currPos,found-currPos);//-currPos-1
+            command.replace(currPos,found-currPos+1,"");//-currPos+1
+        }
+        currPos = command.find("ls");
+        if ( currPos!= std::string::npos){
+            command.insert(currPos+2," --color=auto");       
+        }
 
       stringstream ss(command);
 
@@ -91,7 +102,7 @@ int main() {
           prev = pos+1;
       }
       if (prev < input.length()) token.push_back(input.substr(prev, string::npos));
-      if(input=="awk"||input=="echo") {token.push_back(curr);} 
+      if(input=="awk"|input=="echo") {token.push_back(curr);} 
     }
     bool cdFlag=1;
     for(int i = 0;i<token.size();i++) {
